@@ -1,5 +1,8 @@
 # ErzyCall Skills
 
+[![skills.sh](https://www.skills.sh/b/Erzy-Inc/erzycall-skills)](https://www.skills.sh/Erzy-Inc/erzycall-skills)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Open-source [Agent Skills](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview)
 for AI assistants connected to the **ErzyCall MCP server**.
 
@@ -27,30 +30,45 @@ The MCP server is what makes a call possible. The skill is what makes it safe: r
 contact → choose the script → settle the timing → **show you a confirmation card** → dial.
 Nothing rings until you say yes.
 
+### Install
+
+```bash
+npx skills add Erzy-Inc/erzycall-skills
+```
+
+The [`skills` CLI](https://www.skills.sh/docs/cli) detects which agents you have installed and
+places the skill where each one expects it — Claude Code, Claude Desktop / Cowork, Codex,
+Cursor, Windsurf, Copilot and others. Add `-g` for a user-level install instead of the current
+project, and `npx skills update` to pull later changes.
+
+**A note on updates:** the CLI symlinks by default, so your agents track this repo's `main` —
+including changes to the confirmation rules. Given that this skill gates live phone calls, we
+suggest `--copy` if you would rather review each change before it reaches your call path:
+
+```bash
+npx skills add Erzy-Inc/erzycall-skills --copy
+```
+
+### Manual install
+
+If you would rather not run the CLI, or your client is not one it knows about:
+
 ```bash
 git clone https://github.com/Erzy-Inc/erzycall-skills.git
 ```
 
-### Claude Code · Claude Desktop / Cowork · Agent SDK
-
-Native skill support — drop the folder in and restart:
+**Claude Code · Claude Desktop / Cowork · Agent SDK** — native skill support, so drop the
+folder in and restart. Use `~/.claude/skills/` for every project, or `.claude/skills/` to
+commit it alongside one:
 
 ```bash
 cp -r erzycall-skills/skills/erzycall-outbound-call ~/.claude/skills/
 ```
 
-Or commit it alongside a single project:
-
-```bash
-cp -r erzycall-skills/skills/erzycall-outbound-call .claude/skills/
-```
-
 The skill loads on its own whenever a request involves an outbound call — no slash command.
 Files under `references/` stay out of context until the agent needs them.
 
-### Codex
-
-Codex has no skill loader, so the pipeline goes into your agent instructions instead:
+**Codex** — no skill loader, so the pipeline goes into your agent instructions instead:
 
 ```bash
 cat erzycall-skills/skills/erzycall-outbound-call/SKILL.md >> AGENTS.md
@@ -62,10 +80,9 @@ knowing: Codex reads `AGENTS.md` in full every session rather than loading the s
 and it will not pull in `references/` by itself — name the file when you need it ("check
 `references/scheduling.md`") for timezone handling, `endedReason` values, or retry behaviour.
 
-### Any other MCP-capable agent
-
-Same shape as Codex: connect the MCP server, paste `SKILL.md` into whatever your client uses
-for a system prompt, and keep `references/` on disk for the long tail.
+**Any other MCP-capable agent** — same shape as Codex: connect the MCP server, paste `SKILL.md`
+into whatever your client uses for a system prompt, and keep `references/` on disk for the
+long tail.
 
 ## Verifying it works
 
