@@ -15,28 +15,57 @@ what to show a user before a real phone rings, and how to read what came back.
 
 ## Requirements
 
-- An AI client that supports Agent Skills (Claude Code, Claude Desktop / Cowork, or the Agent SDK)
+- An AI client that supports Agent Skills (Claude Code, Claude Desktop / Cowork, or the Agent
+  SDK) — or any MCP-capable agent you can give a system prompt to, such as Codex
 - The **ErzyCall MCP server** connected, with an ErzyCall API key
 - At least one outbound-capable phone number and one outbound assistant configured in your
   [ErzyCall dashboard](https://app.erzycall.com)
 
-## Install
+## Use it in your agent
 
-**Claude Code / Cowork** — copy the skill folder into your skills directory:
+The MCP server is what makes a call possible. The skill is what makes it safe: resolve the
+contact → choose the script → settle the timing → **show you a confirmation card** → dial.
+Nothing rings until you say yes.
 
 ```bash
-git clone https://github.com/<org>/erzycall-skills.git
+git clone https://github.com/Erzy-Inc/erzycall-skills.git
+```
+
+### Claude Code · Claude Desktop / Cowork · Agent SDK
+
+Native skill support — drop the folder in and restart:
+
+```bash
 cp -r erzycall-skills/skills/erzycall-outbound-call ~/.claude/skills/
 ```
 
-**Per project** — commit it alongside your code:
+Or commit it alongside a single project:
 
 ```bash
 cp -r erzycall-skills/skills/erzycall-outbound-call .claude/skills/
 ```
 
-Restart your client. The skill loads automatically when a request involves an outbound call —
-no slash command needed.
+The skill loads on its own whenever a request involves an outbound call — no slash command.
+Files under `references/` stay out of context until the agent needs them.
+
+### Codex
+
+Codex has no skill loader, so the pipeline goes into your agent instructions instead:
+
+```bash
+cat erzycall-skills/skills/erzycall-outbound-call/SKILL.md >> AGENTS.md
+cp -r erzycall-skills/skills/erzycall-outbound-call/references ./
+```
+
+Add the ErzyCall MCP server to `~/.codex/config.toml` with your API key. Two differences worth
+knowing: Codex reads `AGENTS.md` in full every session rather than loading the skill on demand,
+and it will not pull in `references/` by itself — name the file when you need it ("check
+`references/scheduling.md`") for timezone handling, `endedReason` values, or retry behaviour.
+
+### Any other MCP-capable agent
+
+Same shape as Codex: connect the MCP server, paste `SKILL.md` into whatever your client uses
+for a system prompt, and keep `references/` on disk for the long tail.
 
 ## Verifying it works
 
