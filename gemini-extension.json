@@ -1,0 +1,5 @@
+{
+  "name": "erzycall-skills",
+  "version": "1.0.0",
+  "description": "Confirmation-first workflows for outbound calls using the ErzyCall MCP server. Requires a separately configured MCP connection."
+}

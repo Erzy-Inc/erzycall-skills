@@ -49,6 +49,17 @@ suggest `--copy` if you would rather review each change before it reaches your c
 npx skills add Erzy-Inc/erzycall-skills --copy
 ```
 
+### Gemini CLI
+
+Install this repository as a Gemini CLI extension:
+
+```bash
+gemini extensions install https://github.com/Erzy-Inc/erzycall-skills
+```
+
+Gemini CLI discovers the bundled skill automatically. The extension provides the workflow
+only; configure the ErzyCall MCP server separately before using it to place or manage calls.
+
 ### Manual install
 
 If you would rather not run the CLI, or your client is not one it knows about:
