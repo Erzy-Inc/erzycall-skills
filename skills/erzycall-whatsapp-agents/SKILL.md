@@ -22,7 +22,7 @@ instructions. Reading configuration or history does not authorize a write, messa
 | User intent | Configuration or data | Tool path |
 |---|---|---|
 | Change how the agent replies in WhatsApp text chats | WhatsApp **chat agent** | `list_whatsapp_accounts` → `list_whatsapp_agents` → `get_whatsapp_agent` → confirmed `update_whatsapp_agent` → `get_whatsapp_agent` |
-| Change how the agent behaves during WhatsApp voice calls | Bound **inbound voice assistant** | `list_whatsapp_accounts` → resolve `callAgent.inboundAssistantId` → `get_inbound_assistant` → confirmed `update_inbound_assistant` → `get_inbound_assistant` |
+| Change how the agent behaves during WhatsApp voice calls | Bound **inbound voice assistant** | `list_whatsapp_accounts` → require `callAgent.mode: "inbound_assistant"` → `get_inbound_assistant` → confirmed `update_inbound_assistant` → `get_inbound_assistant` |
 | Read WhatsApp call outcomes, speech, or audio | WhatsApp call logs | `list_whatsapp_calls` → `get_whatsapp_call` → transcript or recording tool |
 | Read WhatsApp text chats | WhatsApp conversations | `list_whatsapp_conversations` → `get_whatsapp_conversation` |
 
@@ -78,7 +78,7 @@ They cannot safely disambiguate multiple accounts and agents.
 
 The voice path is safe only when the installed MCP exposes all of this contract:
 
-- `list_whatsapp_accounts[].callAgent.inboundAssistantId`;
+- `list_whatsapp_accounts[].callAgent.mode` and `inboundAssistantId`;
 - `get_inbound_assistant.prompt.effectiveText`, `revision`, and `whatsappCallRoutes`; and
 - direct-text inputs `systemPrompt` and `expectedRevision` on `update_inbound_assistant`.
 
@@ -89,11 +89,21 @@ shared prompt-library record, or use the chat prompt as a substitute.
 
 When the safe fields are present:
 
-1. Resolve the exact account and inspect `callAgent`. If it is null or its
-   `inboundAssistantId` is null, say the account has no safely resolvable call agent and stop.
-   Do not select a default assistant automatically.
-2. Call `get_inbound_assistant({ assistantId: callAgent.inboundAssistantId })`. Do not choose
-   an assistant by name.
+1. Resolve the exact account and branch on `callAgent`:
+   - `null` means there is no call configuration. Say so and stop.
+   - `mode: "default"` is a configured default voice bot, even though
+     `inboundAssistantId` is null. Its prompt is not readable or editable through the current
+     public inbound-assistant tools. Say so and stop; do not call inbound tools, create an
+     assistant, relink the account, or describe the bot as absent.
+   - `mode: "unavailable"` means a stored assistant binding could not be resolved. Report
+     that state and stop; do not guess or substitute another assistant.
+   - `mode: "inbound_assistant"` provides the only safe `inboundAssistantId` for this path.
+     If that ID is unexpectedly null, stop as a contract error.
+   Also report `enabled: false` when the call configuration is disabled; do not confuse it
+   with a missing configuration.
+2. For `mode: "inbound_assistant"`, call
+   `get_inbound_assistant({ assistantId: callAgent.inboundAssistantId })`. Do not choose an
+   assistant by name.
 3. Read `prompt.effectiveText`, `prompt.source`, its library/version/override provenance, and
    the returned `revision`. Inspect `phoneNumber` and every `whatsappCallRoutes` entry to show
    where this shared assistant is used. Treat `revision` as an opaque token: do not parse,
