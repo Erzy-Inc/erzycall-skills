@@ -22,7 +22,7 @@ instructions. Reading configuration or history does not authorize a write, messa
 | User intent | Configuration or data | Tool path |
 |---|---|---|
 | Change how the agent replies in WhatsApp text chats | WhatsApp **chat agent** | `list_whatsapp_accounts` → `list_whatsapp_agents` → `get_whatsapp_agent` → confirmed `update_whatsapp_agent` → `get_whatsapp_agent` |
-| Change how the agent behaves during WhatsApp voice calls | Bound **inbound voice assistant** | `list_whatsapp_accounts` → resolve its `inboundAssistantId` → `get_inbound_assistant` → confirmed `update_inbound_assistant` → `get_inbound_assistant` |
+| Change how the agent behaves during WhatsApp voice calls | Bound **inbound voice assistant** | `list_whatsapp_accounts` → resolve `callAgent.inboundAssistantId` → `get_inbound_assistant` → confirmed `update_inbound_assistant` → `get_inbound_assistant` |
 | Read WhatsApp call outcomes, speech, or audio | WhatsApp call logs | `list_whatsapp_calls` → `get_whatsapp_call` → transcript or recording tool |
 | Read WhatsApp text chats | WhatsApp conversations | `list_whatsapp_conversations` → `get_whatsapp_conversation` |
 
@@ -76,11 +76,11 @@ They cannot safely disambiguate multiple accounts and agents.
 
 ## Edit the WhatsApp call-agent prompt
 
-The voice path is safe only when the installed MCP exposes both:
+The voice path is safe only when the installed MCP exposes all of this contract:
 
-- the selected account's `inboundAssistantId` binding; and
-- the inbound assistant's effective prompt text plus a direct-text update accepted by
-  `update_inbound_assistant`.
+- `list_whatsapp_accounts[].callAgent.inboundAssistantId`;
+- `get_inbound_assistant.prompt.effectiveText`, `revision`, and `whatsappCallRoutes`; and
+- direct-text inputs `systemPrompt` and `expectedRevision` on `update_inbound_assistant`.
 
 Read the live tool schemas and responses before acting. If either capability is absent, stop:
 the legacy customer contract exposes only `name` and `systemPromptId`, which is not enough to
@@ -89,24 +89,27 @@ shared prompt-library record, or use the chat prompt as a substitute.
 
 When the safe fields are present:
 
-1. Resolve the exact account, take its returned `inboundAssistantId`, then call
-   `get_inbound_assistant({ assistantId })`. Do not choose an assistant by name.
-2. Read the effective prompt and its provenance/overrides. Also inspect returned impact data
-   showing whether this assistant serves other WhatsApp accounts, phone numbers, or routes.
-3. If there is no binding, say that the account has no configured call agent and stop. Do not
-   select a default assistant automatically.
-4. Draft a direct-text prompt update using exactly the live schema. Preserve omitted fields.
-   Direct text and `systemPromptId` are alternative update modes; never send both unless the
-   schema explicitly defines their combination.
+1. Resolve the exact account and inspect `callAgent`. If it is null or its
+   `inboundAssistantId` is null, say the account has no safely resolvable call agent and stop.
+   Do not select a default assistant automatically.
+2. Call `get_inbound_assistant({ assistantId: callAgent.inboundAssistantId })`. Do not choose
+   an assistant by name.
+3. Read `prompt.effectiveText`, `prompt.source`, its library/version/override provenance, and
+   the returned `revision`. Inspect `phoneNumber` and every `whatsappCallRoutes` entry to show
+   where this shared assistant is used.
+4. Draft only the direct-text change. The update inputs are `assistantId`, `systemPrompt`,
+   `expectedRevision` set to the revision just read, `confirmed`, and `idempotencyKey`.
+   `systemPrompt` and legacy `systemPromptId` are mutually exclusive. Use
+   `expectedRevision` only for a `systemPrompt` text update. Never mutate the referenced
+   library prompt or its version directly.
 5. Show the exact account, assistant ID/name, before/after prompt diff, and every reported
    affected route. If the assistant is shared, make the wider impact prominent. Wait for
    explicit approval of that target, text, and impact.
-6. Call `update_inbound_assistant` with the live contract's confirmation, concurrency, and
-   idempotency fields. Reuse the same key and payload for one ambiguous retry; if the version
-   is stale, read, re-propose, and re-confirm.
-7. Read back the inbound assistant and report the effective saved prompt and impact. State
-   that new calls load the new configuration; do not claim a deployment, place a test call,
-   or alter any existing call.
+6. Call `update_inbound_assistant` with those exact inputs. Reuse the same key and payload for
+   one ambiguous retry. On `REVISION_CONFLICT`, read, re-propose, and re-confirm.
+7. Read back the inbound assistant and report `prompt.effectiveText`, `whatsappCallRoutes`,
+   and `appliesTo` when returned. State that the change applies to newly started calls; do
+   not claim a deployment, place a test call, or alter any existing call.
 
 ## Read WhatsApp call logs
 
