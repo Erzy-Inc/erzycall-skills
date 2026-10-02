@@ -6,7 +6,8 @@
 Open-source [Agent Skills](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview)
 for AI assistants connected to the **ErzyCall MCP server**.
 
-The MCP server gives an agent the *tools* to place calls, manage contacts, and read results.
+The MCP server gives an agent the *tools* to place calls, manage contacts and WhatsApp agents,
+and read results.
 These skills give it the *judgment* to use them safely — which order to resolve things in,
 what to show a user before a real phone rings, and how to read what came back.
 
@@ -15,14 +16,16 @@ what to show a user before a real phone rings, and how to read what came back.
 | Skill | What it covers |
 |---|---|
 | [`erzycall-outbound-call`](skills/erzycall-outbound-call/) | Full outbound call lifecycle — resolve contact, choose script, schedule, confirm, dial, verify, read the outcome, cancel or follow up |
+| [`erzycall-whatsapp-agents`](skills/erzycall-whatsapp-agents/) | Resolve WhatsApp accounts and agents, safely edit chat or call-agent prompts, and read customer chat/call logs and artifacts |
 
 ## Requirements
 
 - An AI client that supports Agent Skills (Claude Code, Claude Desktop / Cowork, or the Agent
   SDK) — or any MCP-capable agent you can give a system prompt to, such as Codex
 - The **ErzyCall MCP server** connected, with an ErzyCall API key
-- At least one outbound-capable phone number and one outbound assistant configured in your
-  [ErzyCall dashboard](https://app.erzycall.com)
+- The relevant configuration in your [ErzyCall dashboard](https://app.erzycall.com): an
+  outbound-capable number and assistant for outbound calls, or a connected WhatsApp account
+  for WhatsApp workflows
 
 ## Use it in your agent
 
@@ -57,7 +60,7 @@ Install this repository as a Gemini CLI extension:
 gemini extensions install https://github.com/Erzy-Inc/erzycall-skills
 ```
 
-Gemini CLI discovers the bundled skill automatically. The extension provides the workflow
+Gemini CLI discovers the bundled skills automatically. The extension provides the workflows
 only; configure the ErzyCall MCP server separately before using it to place or manage calls.
 
 ### Manual install
@@ -74,16 +77,18 @@ commit it alongside one:
 
 ```bash
 cp -r erzycall-skills/skills/erzycall-outbound-call ~/.claude/skills/
+cp -r erzycall-skills/skills/erzycall-whatsapp-agents ~/.claude/skills/
 ```
 
-The skill loads on its own whenever a request involves an outbound call — no slash command.
-Files under `references/` stay out of context until the agent needs them.
+Each skill loads when its matching ErzyCall workflow is requested — no slash command. Files
+under `references/` stay out of context until the agent needs them.
 
 **Codex** — no skill loader, so the pipeline goes into your agent instructions instead:
 
 ```bash
 cat erzycall-skills/skills/erzycall-outbound-call/SKILL.md >> AGENTS.md
 cp -r erzycall-skills/skills/erzycall-outbound-call/references ./
+cat erzycall-skills/skills/erzycall-whatsapp-agents/SKILL.md >> AGENTS.md
 ```
 
 Add the ErzyCall MCP server to `~/.codex/config.toml` with your API key. Two differences worth
