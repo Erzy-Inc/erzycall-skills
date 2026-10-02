@@ -79,7 +79,8 @@ They cannot safely disambiguate multiple accounts and agents.
 The voice path is safe only when the installed MCP exposes all of this contract:
 
 - `list_whatsapp_accounts[].callAgent.mode` and `inboundAssistantId`;
-- `get_inbound_assistant.prompt.effectiveText`, `revision`, and `whatsappCallRoutes`; and
+- `get_inbound_assistant.prompt.effectiveText`, `prompt.source`, `revision`, and
+  `whatsappCallRoutes`; and
 - direct-text inputs `systemPrompt` and `expectedRevision` on `update_inbound_assistant`.
 
 Read the live tool schemas and responses before acting. If either capability is absent, stop:
@@ -107,7 +108,11 @@ When the safe fields are present:
 3. Read `prompt.effectiveText`, `prompt.source`, its library/version/override provenance, and
    the returned `revision`. Inspect `phoneNumber` and every `whatsappCallRoutes` entry to show
    where this shared assistant is used. Treat `revision` as an opaque token: do not parse,
-   construct, trim, or otherwise modify it.
+   construct, trim, or otherwise modify it. `prompt.source` describes the bound assistant's
+   effective prompt for new calls: `library`, `embedded`, or runtime `default`. A bound
+   assistant with `prompt.source: "default"` still uses this inbound-assistant path and may be
+   updated with direct prompt text. It is not the same as account `callAgent.mode: "default"`,
+   which has no inbound assistant ID and is not editable through these tools.
 4. Draft only the direct-text change. The update inputs are `assistantId`, `systemPrompt`,
    `expectedRevision` set to the exact revision string just read, `confirmed`, and
    `idempotencyKey`. Echo the revision verbatim even if its format differs from earlier
