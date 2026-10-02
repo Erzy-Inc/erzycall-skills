@@ -79,11 +79,11 @@ They cannot safely disambiguate multiple accounts and agents.
 The voice path is safe only when the installed MCP exposes all of this contract:
 
 - `list_whatsapp_accounts[].callAgent.mode` and `inboundAssistantId`;
-- `get_inbound_assistant.prompt.effectiveText`, `prompt.source`, `revision`, and
-  `whatsappCallRoutes`; and
+- `get_inbound_assistant.configMode`, `prompt.effectiveText`, `prompt.source`, `revision`,
+  and `whatsappCallRoutes`; and
 - direct-text inputs `systemPrompt` and `expectedRevision` on `update_inbound_assistant`.
 
-Read the live tool schemas and responses before acting. If either capability is absent, stop:
+Read the live tool schemas and responses before acting. If any capability is absent, stop:
 the legacy customer contract exposes only `name` and `systemPromptId`, which is not enough to
 inspect and safely edit the effective call prompt. Do not invent a library prompt ID, mutate a
 shared prompt-library record, or use the chat prompt as a substitute.
@@ -105,26 +105,38 @@ When the safe fields are present:
 2. For `mode: "inbound_assistant"`, call
    `get_inbound_assistant({ assistantId: callAgent.inboundAssistantId })`. Do not choose an
    assistant by name.
-3. Read `prompt.effectiveText`, `prompt.source`, its library/version/override provenance, and
-   the returned `revision`. Inspect `phoneNumber` and every `whatsappCallRoutes` entry to show
-   where this shared assistant is used. Treat `revision` as an opaque token: do not parse,
-   construct, trim, or otherwise modify it. `prompt.source` describes the bound assistant's
-   effective prompt for new calls: `library`, `embedded`, or runtime `default`. A bound
-   assistant with `prompt.source: "default"` still uses this inbound-assistant path and may be
-   updated with direct prompt text. It is not the same as account `callAgent.mode: "default"`,
-   which has no inbound assistant ID and is not editable through these tools.
-4. Draft only the direct-text change. The update inputs are `assistantId`, `systemPrompt`,
-   `expectedRevision` set to the exact revision string just read, `confirmed`, and
-   `idempotencyKey`. Echo the revision verbatim even if its format differs from earlier
-   responses. `systemPrompt` and legacy `systemPromptId` are mutually exclusive. Use
-   `expectedRevision` only for a `systemPrompt` text update. Never mutate the referenced
-   library prompt or its version directly.
-5. Show the exact account, assistant ID/name, before/after prompt diff, and every reported
+3. Read `configMode`, `prompt.effectiveText`, `prompt.source`, its
+   library/version/override provenance, and the returned `revision`. Inspect `phoneNumber`
+   and every `whatsappCallRoutes` entry to show where this shared assistant is used. Treat
+   `revision` as an opaque token: do not parse, construct, trim, or otherwise modify it.
+   `prompt.source` describes the bound assistant's effective prompt for new calls: `library`,
+   `embedded`, or runtime `default`. It is independent of the account's `callAgent.mode`.
+4. Branch on `configMode` before drafting an edit:
+   - `transient` supports the direct-text flow below. A transient bound assistant with
+     `prompt.source: "default"` still uses this path and may be updated with direct prompt
+     text.
+   - `permanent` is a provider-synchronized Vapi configuration. Its returned effective
+     prompt is readable but prompt changes are not supported by the current public MCP.
+     Explain that limitation and stop. Do not submit `systemPrompt` or `systemPromptId`, retry,
+     change its config mode, or relink the account. Use a supported dashboard/provider
+     synchronization workflow only when the user separately requests it.
+   Account `callAgent.mode: "default"` remains different: it has no inbound assistant ID and
+   cannot enter this read/edit path at all.
+5. For `configMode: "transient"`, draft only the direct-text change. The update inputs are
+   `assistantId`, `systemPrompt`, `expectedRevision` set to the exact revision string just
+   read, `confirmed`, and `idempotencyKey`. Echo the revision verbatim even if its format
+   differs from earlier responses. `systemPrompt` and legacy `systemPromptId` are mutually
+   exclusive. Use `expectedRevision` only for a `systemPrompt` text update. Never mutate the
+   referenced library prompt or its version directly.
+6. Show the exact account, assistant ID/name, before/after prompt diff, and every reported
    affected route. If the assistant is shared, make the wider impact prominent. Wait for
    explicit approval of that target, text, and impact.
-6. Call `update_inbound_assistant` with those exact inputs. Reuse the same key and payload for
-   one ambiguous retry. On `REVISION_CONFLICT`, read, re-propose, and re-confirm.
-7. Read back the inbound assistant and report `prompt.effectiveText`, `whatsappCallRoutes`,
+7. Call `update_inbound_assistant` with those exact inputs. Reuse the same key and payload for
+   one ambiguous retry. On `REVISION_CONFLICT`, read, re-propose, and re-confirm. On
+   `UNSUPPORTED_CONFIG_MODE`, no prompt change occurred: read the current assistant if needed,
+   report that permanent Vapi prompts require provider synchronization, and stop without
+   retrying, converting, or relinking it.
+8. Read back the inbound assistant and report `prompt.effectiveText`, `whatsappCallRoutes`,
    and `appliesTo` when returned. State that the change applies to newly started calls; do
    not claim a deployment, place a test call, or alter any existing call.
 
