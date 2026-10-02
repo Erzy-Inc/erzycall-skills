@@ -96,10 +96,12 @@ When the safe fields are present:
    an assistant by name.
 3. Read `prompt.effectiveText`, `prompt.source`, its library/version/override provenance, and
    the returned `revision`. Inspect `phoneNumber` and every `whatsappCallRoutes` entry to show
-   where this shared assistant is used.
+   where this shared assistant is used. Treat `revision` as an opaque token: do not parse,
+   construct, trim, or otherwise modify it.
 4. Draft only the direct-text change. The update inputs are `assistantId`, `systemPrompt`,
-   `expectedRevision` set to the revision just read, `confirmed`, and `idempotencyKey`.
-   `systemPrompt` and legacy `systemPromptId` are mutually exclusive. Use
+   `expectedRevision` set to the exact revision string just read, `confirmed`, and
+   `idempotencyKey`. Echo the revision verbatim even if its format differs from earlier
+   responses. `systemPrompt` and legacy `systemPromptId` are mutually exclusive. Use
    `expectedRevision` only for a `systemPrompt` text update. Never mutate the referenced
    library prompt or its version directly.
 5. Show the exact account, assistant ID/name, before/after prompt diff, and every reported
