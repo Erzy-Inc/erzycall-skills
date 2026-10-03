@@ -108,9 +108,12 @@ When the safe fields are present:
 3. Read `configMode`, `prompt.effectiveText`, `prompt.source`, `prompt.appliesTo`, its
    library/version/override provenance, the provider-hosted prompt fields, and the returned
    `revision`. Inspect `phoneNumber` and every `whatsappCallRoutes` entry to show where this
-   shared assistant is used. Treat `revision` as an opaque token: do not parse, construct,
-   trim, or otherwise modify it. `prompt.source` describes the effective prompt as `library`,
-   `embedded`, or runtime `default`. It is independent of the account's `callAgent.mode`.
+   shared assistant is used. The route list includes only active WhatsApp integrations; it
+   retains disabled call configurations as entries with `enabled: false`. Do not infer that
+   omitted archived integrations are active impact, and do not hide a disabled listed route.
+   Treat `revision` as an opaque token: do not parse, construct, trim, or otherwise modify it.
+   `prompt.source` describes the effective prompt as `library`, `embedded`, or runtime
+   `default`. It is independent of the account's `callAgent.mode`.
 4. Branch on the returned runtime scope before drafting an edit:
    - `configMode: "transient"` with `prompt.appliesTo: "new_calls"` supports the direct-text
      flow. A transient assistant with `prompt.source: "default"` still uses this path.
@@ -128,18 +131,22 @@ When the safe fields are present:
      when the user separately requests it.
    Account `callAgent.mode: "default"` remains different: it has no inbound assistant ID and
    cannot enter this read/edit path at all.
-5. For an editable scope (`new_calls` or `new_whatsapp_calls`), draft only the direct-text
-   change. The update inputs are `assistantId`, `systemPrompt`, `expectedRevision` set to the
-   exact revision string just read, `confirmed`, and `idempotencyKey`. Echo the revision
-   verbatim even if its format differs from earlier responses. `systemPrompt` and legacy
-   `systemPromptId` are mutually exclusive. Use `expectedRevision` only for a `systemPrompt`
-   text update. Never mutate the referenced library prompt or its version directly.
+5. For an editable scope (`new_calls` or `new_whatsapp_calls`), choose one prompt update mode:
+   - Direct text: pass `systemPrompt`; this creates and binds an assistant-local prompt
+     without mutating the previously shared library prompt.
+   - Existing Prompt Library selection: pass `systemPromptId` only when the user explicitly
+     selected an exact tenant-owned prompt ID. Do not invent or infer an ID.
+   The two fields are mutually exclusive. Both modes require `assistantId`, `expectedRevision`
+   set to the exact revision string just read, `confirmed`, and `idempotencyKey`. Echo the
+   revision verbatim even if its format differs from earlier responses. Do not send
+   `expectedRevision` for a name-only update.
 6. Show the exact account, assistant ID/name, before/after prompt diff, and every reported
    affected route. If the assistant is shared, make the wider impact prominent. Wait for
    explicit approval of that target, text, and impact.
 7. Call `update_inbound_assistant` with those exact inputs. Reuse the same key and payload for
-   one ambiguous retry. On `REVISION_CONFLICT`, read the routes and prompts again, re-propose,
-   and re-confirm. On `UNSUPPORTED_CONFIG_MODE`, no prompt change occurred: read the current
+   one ambiguous retry. On `REVISION_CONFLICT`, no prompt update or rebind occurred: read the
+   routes and prompts again, re-propose the text or `systemPromptId` selection, and
+   re-confirm. On `UNSUPPORTED_CONFIG_MODE`, no prompt change occurred: read the current
    assistant if needed, report that there is no editable WhatsApp transient-call route, and
    stop without retrying, converting, or relinking it.
 8. Read back the inbound assistant and report `prompt.effectiveText`, `whatsappCallRoutes`,
